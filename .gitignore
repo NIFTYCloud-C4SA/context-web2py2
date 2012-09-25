@@ -1,0 +1,19 @@
+#OSX
+.DS_Store
+__MACOSX
+thumbs.db
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db 
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# web2py2
+contexts/krm/docroot/*
+!contexts/krm/docroot/project/.gitkeep
+contexts/krm/docroot.tar.gz
+contexts/krm.tar.gz

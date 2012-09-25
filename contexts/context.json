@@ -1,0 +1,150 @@
+{
+    "name": "web2py2",
+    "version": "1.0.0",
+    "category": { "language": "python", "framework": "web2py", "priority": 1 },
+    "ui-name": "web2py2",
+    "ui-summary": "web2py_v2.0.9",
+    "description": "web2py2.x は、Python 言語で書かれた Web アプリケーションフレームワークです。",
+    "description-url": null,
+        "parameters": {
+            "mysql_password": { "type": "string",
+                "restr": "[0-9A-Za-z]{8,16}",
+                "auto": "[0-9A-Za-z]{8}" },
+            "webdav_password": { "type": "string",
+                "restr": "[0-9A-Za-z]{8,16}",
+                "auto": "[0-9A-Za-z]{8}" }
+        },
+        "context_resources": ["docroot.tar.gz", "nginx.conf"],
+        "canvas_version": "1.0.0",
+        "instruction": [
+        { "type": "appliance",
+            "appliance_name": "logviewer.local",
+            "appliance_id": "logviewer_id",
+            "state": { }
+        },
+        { "type": "appliance",
+            "appliance_name": "db.mysql.shared",
+            "appliance_id": "mysql_id",
+            "state": {
+                "password": { "type": "variable",
+                    "name": "mysql_password" },
+                "tier": ["20"]
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "disk.shared",
+            "appliance_id": "disk_id",
+            "state": {
+                "passwd": { "type": "variable",
+                    "name": "webdav_password" }
+            }
+        },
+        { "type": "signal",
+            "appliance_id": "disk_id",
+            "signal": "install",
+            "in": {
+                "type": "archive",
+                "resource": "docroot.tar.gz"
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "interpreter.python",
+            "appliance_id": "python_id",
+            "state": {
+                "version": "2.7.3",
+                "env_ids": []
+            }
+        },
+        { "type": "signal",
+            "appliance_id": "python_id",
+            "signal": "pip",
+            "in" : {
+                "action": "install",
+                "argv": "django MySQL-python"
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "util.env-manager",
+            "appliance_id": "env_id",
+            "state": {
+                "env_ids": ["mysql_id"],
+                "envs": []
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "supervisor.local",
+            "appliance_id": "supervisor_id",
+            "state": {
+                "ini" : "",
+                "env_ids": []
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "daemon.python.gunicorn",
+            "appliance_id": "gunicorn_id",
+            "state": {
+		"supervisor_id": "supervisor_id",
+                "interpreter_id": "python_id",
+                "project_root": { "type": "template_string",
+                    "template": "/canvases/${canvas_id}/data/${disk_id}/project" },
+                "workers": 1,
+                "config": "",
+                "app_module": "wsgihandler:application",
+                "daemon_type": "gunicorn",
+                "env_ids": ["env_id"]
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "terminal.shell",
+            "appliance_id": "shell_id",
+            "state": {
+                "commands": ["/bin/ls", "/bin/cat", "/usr/bin/git"],
+		"supervisor_id": "supervisor_id",
+                "working_directory": { "type": "template_string",
+                    "template": "/canvases/${canvas_id}/data/${disk_id}/project" },
+                "env_ids": ["python_id","env_id","supervisor_id"]
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "http-server.nginx",
+            "appliance_id": "http_id",
+            "state": {
+		"supervisor_id": "supervisor_id",
+		"hosts": {
+                    "http_conf_id": {
+			"type": "custom_template",
+			"nginx_conf": { "type": "file",
+					"file": "nginx.conf" },
+			"variables": {
+                            "disk_id": "disk_id",
+                            "gunicorn_id": "gunicorn_id"
+			}
+                    }
+		}
+            }
+        },
+        { "type": "signal",
+            "appliance_id": "supervisor_id",
+            "signal": "supervisorctl",
+            "in" : {
+                "action": "reload",
+                "process": ""
+            }
+        },
+        { "type": "appliance",
+            "appliance_name": "gateway.local",
+            "appliance_id": "gateway_id",
+            "state": {
+                "admin_settings": [{ "id": "shell_id", "type": "standard" },
+                { "id": "disk_id", "type": "webdav" }],
+                "server_settings": [
+                {
+                    "server_name_id": "http_conf_id",
+                    "server_names": [],
+                    "socket_id": "http_id"
+                }
+                ]
+            }
+        }
+    ]
+}
